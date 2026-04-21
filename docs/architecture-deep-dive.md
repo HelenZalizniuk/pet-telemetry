@@ -1,4 +1,4 @@
-# 🏗️ Architectural Requirements & Project Concept (Task-1)
+# 🏗️ Architectural Requirements & Project Concept
 
 ## 1. Project Vision & Strategic Evolution
 The system is evolving from a legacy monolithic Java application (PetClinic) into a **high-load IoT monitoring ecosystem**.
