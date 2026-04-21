@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+package telemetry.v1;
+
+option go_package = "github.com/youruser/pet-telemetry/api/v1;telemetry";
+option java_package = "com.pethealth.telemetry.api.v1";
+option java_multiple_files = true;
+
+import "google/protobuf/timestamp.proto";
+
+// Service definition for streaming telemetry (optional, for gRPC ingestion)
+service TelemetryService {
+  rpc SendVitals(VitalsRequest) returns (VitalsResponse);
+}
+
+// The core message for pet vitals
+message VitalsRequest {
+  string pet_id = 1;              // UUID of the pet
+  float temperature = 2;          // Body temperature in Celsius
+  int32 heart_rate = 3;           // Beats per minute (BPM)
+  ActivityLevel activity = 4;     // Current activity state
+  google.protobuf.timestamp.proto_time = 5; // Timestamp from the device
+}
+
+message VitalsResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// Enum for activity tracking
+enum ActivityLevel {
+  ACTIVITY_LEVEL_UNSPECIFIED = 0;
+  RESTING = 1;
+  LOW = 2;
+  MODERATE = 3;
+  HIGH = 4;
+}
+
+// Batch message for optimized transmission (save battery/bandwidth)
+message VitalsBatch {
+  string device_id = 1;
+  repeated VitalsRequest records = 2;
+}

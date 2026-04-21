@@ -1,90 +1,94 @@
-# pet-telemetry
-### High-Throughput IoT Monitoring System for Pet Health
+# 🐾 pet-telemetry: High-Load IoT Monitoring System
 
 [![Tech Stack](https://img.shields.io/badge/Stack-Go%20%7C%20Java%20%7C%20Kafka%20%7C%20Postgres-blue)](#)
 [![Architecture](https://img.shields.io/badge/Architecture-EDA%20%7C%20C4%20Model-orange)](#)
-
-> **Status:** Work in Progress. Architecture design phase.
+[![Theory](https://img.shields.io/badge/Design-PA%2FEL%20%7C%20Saga%20%7C%20Raft-green)](#)
 
 ## 📌 Overview
-**pet-telemetry** is a high-performance backend ecosystem designed to ingest, process, and monitor real-time health data from thousands of IoT-enabled pet collars. 
+**pet-telemetry** is a high-performance backend ecosystem designed to ingest, process, and analyze real-time health data (heart rate, temperature, activity) from thousands of IoT-enabled pet collars.
 
-This project demonstrates a transition from a traditional monolithic approach to a scalable **Event-Driven Architecture (EDA)**, focusing on high-write workloads, data consistency, and system observability.
-
-## 🚀 Key Architectural Features
-* **High-Throughput Ingestion:** Built with **Go** and a customized **Worker Pool** to handle 2000+ RPS.
-* **Time-Series Optimization:** Utilizing **TimescaleDB** for efficient storage of heart rate and temperature metrics.
-* **Reliable Messaging:** **Apache Kafka** acts as the central Message Bus, ensuring temporal decoupling.
-* **Guaranteed Delivery:** Implementation of the **Transactional Outbox Pattern** to prevent data loss between the database and the message broker.
-* **Scalability:** Horizontal sharding strategy by `pet_id`.
+This project demonstrates a strategic transition from a monolithic approach to a scalable **Event-Driven Architecture (EDA)** capable of handling **2,000+ RPS (172M+ events per day)**, focusing on high-write workloads, fault tolerance, and deep observability.
 
 ---
 
 ## 🏗 Architecture (C4 Model)
-
-I used the **C4 Model** to document the system's architecture, moving from high-level context to container-level details.
+I used the **C4 Model** to document the system's architecture, moving from high-level context to container-level details. This ensures both business stakeholders and engineers understand the data flow.
 
 ### 1. System Context Diagram
-Shows how **pet-telemetry** interacts with Pet Owners, Veterinarians, and IoT devices.
+Describes how **pet-telemetry** interacts with Pet Owners, Veterinarians, and IoT devices.  
 ![System Context Diagram](./docs/diagrams/context.png)
 
 ### 2. Container Diagram
-Detailed view of the tech stack: Go Ingestor, Java Medical Service, Kafka, and specialized Databases.
+A detailed view of the tech stack: Go Ingestor, Java Medical Service, Kafka, and specialized Databases (Tiered Storage).  
 ![Container Diagram](./docs/diagrams/container.png)
 
 ---
 
-## 📊 Data Strategy & Storage
+## 📄 Detailed Documentation Index
+I have meticulously documented every architectural decision. It is recommended to explore them in the following order:
 
-The system uses a hybrid storage approach to satisfy both relational integrity and high-write performance requirements.
-
-### 1. Storage Choice: TimescaleDB
-* **Why:** Standard PostgreSQL struggles with massive time-series ingestion as indexes grow. TimescaleDB solves this via **Hypertables**, automatically partitioning data by time.
-* **Optimization:** We use a **7-day chunk interval** and **Compression Policy** for data older than 30 days to reduce storage costs by up to 90%.
-
-### 2. Database Schema (Key Entities)
-
-#### `vitals_data` (Hypertable)
-| Column | Type | Description |
-| :--- | :--- | :--- |
-| `time` | TIMESTAMPTZ | Event timestamp (Partitioning key) |
-| `pet_id` | UUID | Foreign key to Pet Profile (Sharding key) |
-| `heart_rate` | SMALLINT | BPM data |
-| `temperature` | NUMERIC(4,2) | Celsius data |
+1. [**Architectural Vision**](./docs/architecture-deep-dive.md) – Project vision, business goals, and the Java-to-Go pivot.
+2. [**Architectural Style**](./docs/architectural-style.md) – Hybrid decomposition and system patterns.
+3. [**Capacity Planning**](./docs/capacity-planning.md) – Throughput calculations for 2,000+ RPS.
+4. [**Scalability Analysis**](./docs/scalability-analysis.md) – Vertical, horizontal, and "in-depth" scaling strategies.
+5. [**Decomposition Strategy**](./docs/decomposition-strategy.md) – Logic behind service split and communication boundaries.
+6. [**Data Access Strategy**](./docs/data-access-strategy.md) – Protocols (gRPC, MQTT, Kafka) and communication flows.
+7. [**Data Serialization & Storage**](./docs/data-serialization-storage.md) – Protobuf vs. JSON for binary efficiency.
+8. [**Storage Architecture**](./docs/storage-architecture.md) – Multi-tiered design with Redis, PostgreSQL, and TimescaleDB.
+9. [**Observability**](./docs/observability.md) – Monitoring stack, SLOs (99.9%), and health-check logic.
+10. [**CS Fundamentals**](./docs/data-structures-and-memory.md) – LSM-Trees, B-Trees, and memory management.
+11. [**CAP & PACELC Analysis**](./docs/cap-pacelc-analysis.md) – Distributed systems theory and the PA/EL strategy.
+12. [**Analytics & Reporting**](./docs/analytics-and-reporting.md) – Streaming vs. Batching design for medical insights.
+13. [**Distributed Consistency**](./docs/distributed-consistency-and-transactions.md) – Saga patterns, ACID vs. BASE, and reliability.
+14. [**Replication Strategies**](./docs/replication-strategies.md) – Comparison of Leader-based vs. Leaderless replication.
+15. [**Distributed Storage Specs**](./docs/distributed-storage-specs.md) – Sharding, consensus (Raft), and final technical specs.
+16. [**Academic Reflection**](./docs/academic-reflection.md) – Project summary and key design takeaways.
 
 ---
 
-## ⚙️ Scalability & Reliability (PACELC)
+## 🏗 Data Contracts & Serialization
+To ensure seamless communication between the **Go Ingestor** and **Java Medical Service**, we use **Protocol Buffers (Protobuf)**.
 
-In designing the system, I applied the **PACELC** theorem to balance trade-offs:
-* **Partition (P):** During a network partition, the system prioritizes **Availability (A)**. IoT collars can buffer data locally, and the Ingestor continues to accept heartbeat packets.
-* **Else (E):** In normal operation, we prioritize **Latency (L)** over strict consistency for telemetry history, using asynchronous processing via Kafka.
+* **Contract Definition:** [telemetry.proto](./api/telemetry.proto)
+* **Key Benefits:** * **75% smaller payloads** compared to standard JSON.
+    * **Automatic Code Generation** for both Golang and Java.
+    * **Type Safety:** Ensures valid data types for heart rate and activity levels.
 
-### Infrastructure Strategy
-* **Deployment:** Containerized via **Docker**, orchestrated by **Kubernetes**.
-* **Auto-scaling:** Horizontal Pod Autoscaler (HPA) triggers new **Go Ingestor** instances based on CPU/RAM saturation or custom Kafka consumer lag metrics.
-* **Fault Tolerance:** Multi-AZ deployment of Kafka brokers and PostgreSQL replicas.
+---
 
-## 📈 Observability & Monitoring
-To maintain the **99.9% SLO**, the following stack is proposed:
-* **Prometheus:** Scrapes Go-specific metrics (`goroutines_count`, `worker_pool_saturation`).
-* **Grafana:** Dashboards for "Golden Signals" (Latency, Traffic, Errors, Saturation).
-* **Alertmanager:** P0 alerts for Service Down and P1 alerts for abnormal health patterns.
+## 🚀 Key Architectural Features
+* **High-Throughput Ingestion:** Custom **Go Worker Pool** for non-blocking telemetry processing.
+* **Time-Series Optimization:** Metrics stored in **TimescaleDB** using Hypertables (90% storage savings).
+* **Reliable Messaging:** **Apache Kafka** acts as the central message bus and buffer.
+* **Binary Efficiency:** **Protobuf** integration to extend IoT device battery life.
+* **Hybrid Replication:** Leader-based for CRM data; Quorum-based for telemetry.
+
+---
+
+## 📊 Data Strategy & Distributed Theory
+* **PACELC (PA/EL):** Prioritizes **Availability** during partitions and **Latency** in normal operations.
+* **Consensus:** **Raft Algorithm** for Leader Election to prevent Split-Brain scenarios.
+* **Sharding:** **Horizontal Hash-based Sharding** by `pet_id`.
+
+## 📈 Observability (SLO 99.9%)
+* **Prometheus & Grafana:** Monitoring "Golden Signals" and Go-specific metrics.
+* **ELK Stack:** Centralized log aggregation.
+* **Alerting:** Graded alerting system via Alertmanager.
 
 ---
 
 ## 🛠 Getting Started
-
-To spin up the infrastructure (Databases, Message Broker, Cache), run:
-
 ```bash
 cd deploy
 docker-compose up -d
 
-The system will be available with the following ports:
+Infrastructure Map:
+TimescaleDB: 5432 (Telemetry History)
 
-TimescaleDB: 5432
+PostgreSQL: 5433 (Business/CRM Data)
 
-Kafka: 9092
+Kafka: 9092 (Message Bus)
 
-Redis: 6379
+Redis: 6379 (Live Cache & Pub/Sub)
+
+Developed as part of the Advanced Software Architecture Program, 2026.
