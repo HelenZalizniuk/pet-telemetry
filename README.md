@@ -22,7 +22,7 @@ Following the formal requirements, the design is presented through three levels 
 
 ---
 
-## 📁 Project Documentation (Full Index)
+## 📁 Project Documentation
 
 This index maps every technical document to the formal assignment requirements.
 
